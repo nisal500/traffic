@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BC706 — Weekly Traffic Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #f5f2ec;
+  --ink: #1a1410;
+  --surface: #ffffff;
+  --border: #d8d2c8;
+  --accent: #c84b2f;
+  --accent2: #2563eb;
+  --muted: #8a8278;
+  --tag-bg: #ede9e2;
+  --active-bg: #1a1410;
+  --active-text: #f5f2ec;
+  --good: #1a7a4a;
+  --warn: #b45309;
+  --up: #15803d;
+  --down: #b91c1c;
+  --post-c: #2563eb;
+  --hug-c: #d97706;
+  --pre-c: #7c3aed;
+  --traffic-c: #c84b2f;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Syne', sans-serif;
+  min-height: 100vh;
+  padding: 32px 28px;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+.wrap { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; }
+
+header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+.eyebrow {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+h1 {
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+}
+h1 em { color: var(--accent); font-style: normal; }
+.store-chip {
+  display: inline-block;
+  background: var(--ink);
+  color: var(--bg);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  padding: 5px 12px;
+  border-radius: 2px;
+  margin-bottom: 6px;
+}
+.period-text {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* LEGEND STRIP */
+.legend-strip {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+.legend-dot {
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* FILTERS */
+.filter-section { margin-bottom: 24px; }
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.filter-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  min-width: 52px;
+}
+.btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+
+button {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 6px 14px;
+  border-radius: 3px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+button:hover { border-color: var(--ink); color: var(--ink); background: var(--tag-bg); }
+button.active { background: var(--active-bg); color: var(--active-text); border-color: var(--active-bg); }
+button.accent-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+button.blue-btn.active { background: var(--accent2); border-color: var(--accent2); color: white; }
+button:disabled { opacity: 0.4; cursor: default; }
+
+/* KPI CARDS */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  padding: 16px 16px 14px;
+  position: relative;
+  overflow: hidden;
+}
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+}
+.kpi-card.k-traffic::before { background: var(--traffic-c); }
+.kpi-card.k-post::before   { background: var(--post-c); }
+.kpi-card.k-hug::before    { background: var(--hug-c); }
+.kpi-card.k-pre::before    { background: var(--pre-c); }
+.kpi-card.k-total::before  { background: #059669; }
+.kpi-card.k-conv::before   { background: #0891b2; }
+
+.kpi-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.kpi-val {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.kpi-delta {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+}
+.kpi-delta.up { color: var(--up); }
+.kpi-delta.down { color: var(--down); }
+.kpi-delta.neutral { color: var(--muted); }
+
+/* CHART */
+.chart-panel {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  padding: 22px 24px;
+  margin-bottom: 16px;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.panel-title { font-size: 15px; font-weight: 700; }
+.panel-sub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+}
+.chart-wrap { position: relative; height: 300px; }
+
+/* SERIES TOGGLES */
+.series-toggles {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 3px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  transition: all 0.15s;
+}
+.toggle-btn .dot { width: 8px; height: 8px; border-radius: 2px; }
+.toggle-btn.on { color: var(--ink); border-color: var(--ink); background: var(--tag-bg); }
+.toggle-btn.on.traffic-t { border-color: var(--traffic-c); color: var(--traffic-c); background: rgba(200,75,47,0.06); }
+.toggle-btn.on.post-t   { border-color: var(--post-c);    color: var(--post-c);    background: rgba(37,99,235,0.06); }
+.toggle-btn.on.hug-t    { border-color: var(--hug-c);     color: var(--hug-c);     background: rgba(217,119,6,0.06); }
+.toggle-btn.on.pre-t    { border-color: var(--pre-c);     color: var(--pre-c);     background: rgba(124,58,237,0.06); }
+
+/* BOTTOM GRID */
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+/* TOP WEEKS */
+.top-week-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.top-week-item:last-child { border-bottom: none; }
+.tw-rank { font-size: 20px; font-weight: 800; color: var(--border); min-width: 28px; }
+.tw-info { flex: 1; min-width: 0; }
+.tw-date { font-size: 13px; font-weight: 700; }
+.tw-meta { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 2px; }
+.tw-pills { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.tw-pill {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 2px;
+  font-weight: 500;
+}
+.pill-post { background: rgba(37,99,235,0.1); color: var(--post-c); }
+.pill-hug  { background: rgba(217,119,6,0.1); color: var(--hug-c); }
+.pill-pre  { background: rgba(124,58,237,0.1); color: var(--pre-c); }
+.tw-val { font-size: 22px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+
+/* MONTH BARS */
+.spark-row {
+  display: grid;
+  grid-template-columns: 76px 1fr 48px 42px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.spark-row:last-child { border-bottom: none; }
+.spark-month { font-size: 13px; font-weight: 700; }
+.spark-bar-bg { height: 8px; background: var(--tag-bg); border-radius: 4px; overflow: hidden; }
+.spark-bar-fill { height: 100%; border-radius: 4px; }
+.spark-num { font-family: 'IBM Plex Mono', monospace; font-size: 11px; text-align: right; }
+.spark-pct { font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-align: right; color: var(--muted); }
+
+/* TABLE */
+.table-panel {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.table-panel .panel-header { padding: 18px 20px 0; }
+.table-scroll { overflow-x: auto; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 820px;
+}
+thead tr { border-bottom: 2px solid var(--border); }
+th {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 10px 14px;
+  text-align: right;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+th:hover { color: var(--ink); }
+th.sort-active { color: var(--accent); }
+th:first-child { text-align: left; }
+th .sa { margin-left: 4px; font-size: 9px; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #faf8f5; }
+tbody tr.peak-row { background: rgba(200,75,47,0.04); }
+td {
+  padding: 9px 14px;
+  text-align: right;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+td:first-child { text-align: left; font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600; }
+.traffic-bar { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
+.mini-bar { width: 48px; height: 5px; background: var(--tag-bg); border-radius: 2px; overflow: hidden; }
+.mini-fill { height: 100%; border-radius: 2px; }
+.rank-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  font-size: 10px; font-weight: 700;
+}
+.rank-1 { background: #f59e0b; color: white; }
+.rank-2 { background: #94a3b8; color: white; }
+.rank-3 { background: #cd7c3a; color: white; }
+.trend-up { color: var(--up); }
+.trend-dn { color: var(--down); }
+.trend-eq { color: var(--muted); }
+
+/* inline color vals */
+.val-post { color: var(--post-c); }
+.val-hug  { color: var(--hug-c); }
+.val-pre  { color: var(--pre-c); }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+.page-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+.page-btns button { padding: 4px 9px; font-size: 11px; }
+
+footer {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-align: center;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="eyebrow">Sales Board Reporting · Weekly Traffic &amp; Sales</div>
+      <h1>WEEKLY<br><em>TRAFFIC</em><br>REPORT</h1>
+    </div>
+    <div style="text-align:right;padding-top:8px;">
+      <div class="store-chip">BC706 · PACIFIC CENTRE</div><br>
+      <div class="period-text" id="periodText">Dec 2024 – Dec 2025</div>
+    </div>
+  </header>
+
+  <!-- LEGEND -->
+  <div class="legend-strip">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--traffic-c)"></div>Traffic (footfall)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--post-c)"></div>Postpaid activations</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--hug-c)"></div>Upgrades / HUG</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--pre-c)"></div>Prepaid activations</div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filter-section">
+    <div class="filter-row">
+      <span class="filter-label">Period</span>
+      <div class="btn-group" id="periodBtns">
+        <button class="active" data-period="all">All Weeks</button>
+        <button data-period="2024-Q4">Q4 2024</button>
+        <button data-period="2025-Q1">Q1 2025</button>
+        <button data-period="2025-Q2">Q2 2025</button>
+        <button data-period="2025-Q3">Q3 2025</button>
+        <button data-period="2025-Q4">Q4 2025</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Month</span>
+      <div class="btn-group" id="monthBtns"></div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Traffic</span>
+      <div class="btn-group" id="rangeBtns">
+        <button class="accent-btn active" data-range="all">All</button>
+        <button data-range="high">High (500+)</button>
+        <button data-range="mid">Mid (400–499)</button>
+        <button data-range="low">Low (&lt;400)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip" id="kpiStrip"></div>
+
+  <!-- CHART -->
+  <div class="chart-panel">
+    <div class="panel-header">
+      <span class="panel-title">Weekly Traffic &amp; Sales Breakdown</span>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <button class="blue-btn active" id="viewChrono">Chronological</button>
+        <button class="blue-btn" id="viewRanked">Ranked</button>
+        <span class="panel-sub" id="chartCount"></span>
+      </div>
+    </div>
+    <div class="series-toggles" id="seriesToggled">
+      <button class="toggle-btn on traffic-t" data-series="0"><div class="dot" style="background:var(--traffic-c)"></div>Traffic</button>
+      <button class="toggle-btn on post-t"    data-series="1"><div class="dot" style="background:var(--post-c)"></div>Postpaid</button>
+      <button class="toggle-btn on hug-t"     data-series="2"><div class="dot" style="background:var(--hug-c)"></div>Upgrades/HUG</button>
+      <button class="toggle-btn on pre-t"     data-series="3"><div class="dot" style="background:var(--pre-c)"></div>Prepaid</button>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="mainChart"></canvas>
+    </div>
+  </div>
+
+  <!-- BOTTOM GRID -->
+  <div class="bottom-grid">
+    <div class="chart-panel" style="margin-bottom:0">
+      <div class="panel-header">
+        <span class="panel-title">Top 10 Weeks by Traffic</span>
+        <span class="panel-sub">FILTERED</span>
+      </div>
+      <div id="topWeeksList"></div>
+    </div>
+    <div class="chart-panel" style="margin-bottom:0">
+      <div class="panel-header">
+        <span class="panel-title">Monthly Avg Traffic</span>
+        <span class="panel-sub">FILTERED RANGE</span>
+      </div>
+      <div id="monthBars"></div>
+    </div>
+  </div>
+
+  <div style="margin-top:14px"></div>
+
+  <!-- TABLE -->
+  <div class="table-panel">
+    <div class="panel-header" style="margin-bottom:12px;">
+      <span class="panel-title">All Weeks Detail</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button id="sortTrafficBtn" class="active" onclick="setSort('traffic')">Traffic ↓</button>
+        <button onclick="setSort('date')">By Date</button>
+        <button onclick="setSort('postpaid')">Postpaid ↓</button>
+        <button onclick="setSort('hug')">HUG ↓</button>
+        <button onclick="setSort('prepaid')">Prepaid ↓</button>
+        <button onclick="setSort('total')">Total Sales ↓</button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="setSort('date')">Week Range <span class="sa" id="arr-date"></span></th>
+            <th onclick="setSort('traffic')" style="color:var(--traffic-c)">Traffic <span class="sa" id="arr-traffic">▼</span></th>
+            <th onclick="setSort('postpaid')" style="color:var(--post-c)">Postpaid <span class="sa" id="arr-postpaid"></span></th>
+            <th onclick="setSort('hug')" style="color:var(--hug-c)">HUG <span class="sa" id="arr-hug"></span></th>
+            <th onclick="setSort('prepaid')" style="color:var(--pre-c)">Prepaid <span class="sa" id="arr-prepaid"></span></th>
+            <th onclick="setSort('total')" style="color:#059669">Total Sales <span class="sa" id="arr-total"></span></th>
+            <th onclick="setSort('conv')">Conv% <span class="sa" id="arr-conv"></span></th>
+            <th>Rank</th>
+            <th>vs Avg</th>
+            <th>WoW Δ</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span id="pageInfo"></span>
+      <div class="page-btns">
+        <button id="prevBtn" onclick="changePage(-1)">← Prev</button>
+        <span id="pageNums" style="display:flex;gap:4px;flex-wrap:wrap;"></span>
+        <button id="nextBtn" onclick="changePage(1)">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>MEGAHIVE ANALYTICS · BC706 PACIFIC CENTRE · WEEKLY TRAFFIC REPORT · DEC 2024 – DEC 2025</footer>
+</div>
+
+<script>
+// ========== DATA ==========
+const ALL_DATA = [
+  {d:"2024-12-07",t:631,pp:75,hug:26,pre:40},
+  {d:"2024-12-14",t:662,pp:34,hug:22,pre:24},
+  {d:"2024-12-21",t:781,pp:39,hug:15,pre:19},
+  {d:"2024-12-28",t:645,pp:70,hug:33,pre:25},
+  {d:"2024-12-31",t:244,pp:29,hug:21,pre:13},
+  {d:"2025-01-04",t:292,pp:34,hug:14,pre:12},
+  {d:"2025-01-11",t:472,pp:45,hug:24,pre:20},
+  {d:"2025-01-18",t:434,pp:15,hug:15,pre:14},
+  {d:"2025-01-25",t:462,pp:23,hug:18,pre:11},
+  {d:"2025-02-01",t:502,pp:24,hug:17,pre:9},
+  {d:"2025-02-08",t:446,pp:19,hug:18,pre:20},
+  {d:"2025-02-15",t:523,pp:22,hug:16,pre:10},
+  {d:"2025-02-22",t:409,pp:29,hug:22,pre:15},
+  {d:"2025-03-01",t:420,pp:23,hug:24,pre:6},
+  {d:"2025-03-08",t:398,pp:33,hug:21,pre:11},
+  {d:"2025-03-15",t:468,pp:37,hug:25,pre:13},
+  {d:"2025-03-22",t:521,pp:47,hug:29,pre:16},
+  {d:"2025-03-29",t:448,pp:42,hug:26,pre:15},
+  {d:"2025-04-05",t:476,pp:38,hug:22,pre:8},
+  {d:"2025-04-12",t:495,pp:24,hug:23,pre:22},
+  {d:"2025-04-19",t:426,pp:24,hug:12,pre:16},
+  {d:"2025-04-26",t:413,pp:26,hug:18,pre:21},
+  {d:"2025-05-03",t:394,pp:19,hug:15,pre:15},
+  {d:"2025-05-10",t:428,pp:27,hug:22,pre:15},
+  {d:"2025-05-17",t:427,pp:21,hug:14,pre:27},
+  {d:"2025-05-24",t:407,pp:16,hug:15,pre:23},
+  {d:"2025-05-31",t:438,pp:19,hug:33,pre:39},
+  {d:"2025-06-07",t:416,pp:30,hug:27,pre:21},
+  {d:"2025-06-14",t:444,pp:26,hug:15,pre:20},
+  {d:"2025-06-21",t:449,pp:33,hug:19,pre:37},
+  {d:"2025-06-28",t:497,pp:39,hug:23,pre:35},
+  {d:"2025-07-05",t:354,pp:30,hug:21,pre:32},
+  {d:"2025-07-12",t:434,pp:31,hug:14,pre:27},
+  {d:"2025-07-19",t:279,pp:30,hug:22,pre:31},
+  {d:"2025-07-26",t:414,pp:24,hug:16,pre:27},
+  {d:"2025-08-02",t:421,pp:19,hug:23,pre:25},
+  {d:"2025-08-09",t:419,pp:29,hug:23,pre:27},
+  {d:"2025-08-16",t:443,pp:34,hug:24,pre:17},
+  {d:"2025-08-23",t:396,pp:31,hug:21,pre:21},
+  {d:"2025-08-30",t:428,pp:45,hug:20,pre:35},
+  {d:"2025-09-06",t:367,pp:30,hug:20,pre:44},
+  {d:"2025-09-13",t:391,pp:28,hug:25,pre:36},
+  {d:"2025-09-20",t:460,pp:23,hug:23,pre:26},
+  {d:"2025-09-27",t:457,pp:33,hug:22,pre:18},
+  {d:"2025-10-04",t:396,pp:29,hug:18,pre:11},
+  {d:"2025-10-11",t:437,pp:27,hug:14,pre:19},
+  {d:"2025-10-18",t:445,pp:18,hug:14,pre:15},
+  {d:"2025-10-25",t:434,pp:25,hug:21,pre:9},
+  {d:"2025-11-01",t:436,pp:24,hug:13,pre:13},
+  {d:"2025-11-08",t:412,pp:31,hug:19,pre:8},
+  {d:"2025-11-15",t:349,pp:27,hug:17,pre:10},
+  {d:"2025-11-22",t:424,pp:59,hug:19,pre:7},
+  {d:"2025-11-29",t:520,pp:123,hug:49,pre:7},
+  {d:"2025-12-06",t:480,pp:55,hug:35,pre:8},
+  {d:"2025-12-13",t:455,pp:37,hug:23,pre:17},
+  {d:"2025-12-20",t:507,pp:44,hug:35,pre:12},
+  {d:"2025-12-27",t:546,pp:95,hug:58,pre:17},
+  {d:"2025-12-31",t:267,pp:43,hug:38,pre:16}
+];
+
+// Add derived fields
+ALL_DATA.forEach(r => { r.total = r.pp + r.hug + r.pre; r.conv = r.total / r.t; });
+
+// Global rank by traffic
+const GLOBAL_RANKS = {};
+[...ALL_DATA].sort((a,b)=>b.t-a.t).forEach((row,i)=>{ GLOBAL_RANKS[row.d]=i+1; });
+
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Week label: "2025 Dec 7–13"
+function weekLabel(dateStr) {
+  const start = new Date(dateStr);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const sm = MONTHS_SHORT[start.getMonth()], em = MONTHS_SHORT[end.getMonth()];
+  const sy = start.getFullYear(), ey = end.getFullYear();
+  if (sy === ey && sm === em) return `${sy} ${sm} ${start.getDate()}–${end.getDate()}`;
+  if (sy === ey) return `${sy} ${sm} ${start.getDate()}–${em} ${end.getDate()}`;
+  return `${sy} ${sm} ${start.getDate()}–${ey} ${em} ${end.getDate()}`;
+}
+
+// ========== STATE ==========
+let activeFilters = { period: 'all', month: null, range: 'all' };
+let sortKey = 'traffic', sortDir = -1;
+let chartView = 'chrono';
+let page = 1;
+const PAGE_SIZE = 15;
+let mainChart = null;
+let filteredData = [...ALL_DATA];
+let seriesVisible = [true, true, true, true]; // traffic, postpaid, hug, prepaid
+
+// ========== MONTH BUTTONS ==========
+const monthSet = [...new Set(ALL_DATA.map(r=>r.d.slice(0,7)))].sort();
+const monthBtnsEl = document.getElementById('monthBtns');
+const allMBtn = document.createElement('button');
+allMBtn.textContent = 'All'; allMBtn.className = 'active';
+allMBtn.onclick = () => { activeFilters.month = null; syncMonthBtns(null); applyFilters(); };
+monthBtnsEl.appendChild(allMBtn);
+monthSet.forEach(mk => {
+  const [y,m] = mk.split('-');
+  const btn = document.createElement('button');
+  btn.textContent = MONTHS_SHORT[parseInt(m)-1]+" '"+y.slice(2);
+  btn.dataset.month = mk;
+  btn.onclick = () => { activeFilters.month = mk; syncMonthBtns(mk); applyFilters(); };
+  monthBtnsEl.appendChild(btn);
+});
+function syncMonthBtns(mk) {
+  [...monthBtnsEl.querySelectorAll('button')].forEach(b =>
+    b.classList.toggle('active', mk===null ? b.textContent==='All' : b.dataset.month===mk));
+}
+
+// Period buttons
+document.getElementById('periodBtns').querySelectorAll('button').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('#periodBtns button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilters.period = btn.dataset.period;
+    applyFilters();
+  };
+});
+
+// Range buttons
+document.getElementById('rangeBtns').querySelectorAll('button').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('#rangeBtns button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilters.range = btn.dataset.range;
+    applyFilters();
+  };
+});
+
+// Chart view
+document.getElementById('viewChrono').onclick = () => {
+  chartView = 'chrono';
+  document.getElementById('viewChrono').classList.add('active');
+  document.getElementById('viewRanked').classList.remove('active');
+  renderChart();
+};
+document.getElementById('viewRanked').onclick = () => {
+  chartView = 'ranked';
+  document.getElementById('viewRanked').classList.add('active');
+  document.getElementById('viewChrono').classList.remove('active');
+  renderChart();
+};
+
+// Series toggles
+document.querySelectorAll('#seriesToggled .toggle-btn').forEach(btn => {
+  btn.onclick = () => {
+    const idx = parseInt(btn.dataset.series);
+    seriesVisible[idx] = !seriesVisible[idx];
+    btn.classList.toggle('on', seriesVisible[idx]);
+    if (mainChart) {
+      mainChart.data.datasets[idx].hidden = !seriesVisible[idx];
+      mainChart.update();
+    }
+  };
+});
+
+// ========== FILTER ==========
+function getQuarter(d) {
+  const m = parseInt(d.slice(5,7)), y = d.slice(0,4);
+  return `${y}-Q${Math.ceil(m/3)}`;
+}
+function applyFilters() {
+  page = 1;
+  filteredData = ALL_DATA.filter(row => {
+    if (activeFilters.period !== 'all' && getQuarter(row.d) !== activeFilters.period) return false;
+    if (activeFilters.month && !row.d.startsWith(activeFilters.month)) return false;
+    if (activeFilters.range === 'high' && row.t < 500) return false;
+    if (activeFilters.range === 'mid' && (row.t < 400 || row.t >= 500)) return false;
+    if (activeFilters.range === 'low' && row.t >= 400) return false;
+    return true;
+  });
+  render();
+}
+
+// ========== SORT ==========
+function setSort(key) {
+  // reset all active states on sort buttons in header
+  document.querySelectorAll('.table-panel .panel-header button').forEach(b=>b.classList.remove('active'));
+  if (sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = -1; }
+  ['traffic','date','postpaid','hug','prepaid','total','conv'].forEach(k => {
+    const el = document.getElementById('arr-'+k);
+    if(el) el.textContent = sortKey===k ? (sortDir===1?'▲':'▼') : '';
+    if(el) el.parentElement.classList.toggle('sort-active', sortKey===k);
+  });
+  renderTable();
+}
+
+// ========== KPIs ==========
+function renderKPIs() {
+  const avg = a => a.length ? a.reduce((s,v)=>s+v,0)/a.length : 0;
+  const sum = a => a.reduce((s,v)=>s+v,0);
+  const tArr = filteredData.map(d=>d.t);
+  const ppArr= filteredData.map(d=>d.pp);
+  const hArr = filteredData.map(d=>d.hug);
+  const prArr= filteredData.map(d=>d.pre);
+  const totArr=filteredData.map(d=>d.total);
+  const gAvg = ALL_DATA.reduce((s,d)=>s+d.t,0)/ALL_DATA.length;
+  const avgT = avg(tArr);
+  const diff = avgT ? ((avgT/gAvg-1)*100).toFixed(1) : 0;
+  const sign = diff >= 0 ? '+' : '';
+
+  document.getElementById('kpiStrip').innerHTML = `
+    <div class="kpi-card k-traffic">
+      <div class="kpi-label">Avg Traffic</div>
+      <div class="kpi-val">${tArr.length ? avgT.toFixed(0) : '—'}</div>
+      <div class="kpi-delta ${diff>=0?'up':'down'}">${sign}${diff}% vs overall</div>
+    </div>
+    <div class="kpi-card k-post">
+      <div class="kpi-label">Avg Postpaid</div>
+      <div class="kpi-val">${ppArr.length ? avg(ppArr).toFixed(1) : '—'}</div>
+      <div class="kpi-delta neutral">total: ${sum(ppArr)}</div>
+    </div>
+    <div class="kpi-card k-hug">
+      <div class="kpi-label">Avg HUG</div>
+      <div class="kpi-val">${hArr.length ? avg(hArr).toFixed(1) : '—'}</div>
+      <div class="kpi-delta neutral">total: ${sum(hArr)}</div>
+    </div>
+    <div class="kpi-card k-pre">
+      <div class="kpi-label">Avg Prepaid</div>
+      <div class="kpi-val">${prArr.length ? avg(prArr).toFixed(1) : '—'}</div>
+      <div class="kpi-delta neutral">total: ${sum(prArr)}</div>
+    </div>
+    <div class="kpi-card k-total">
+      <div class="kpi-label">Avg Total Sales</div>
+      <div class="kpi-val">${totArr.length ? avg(totArr).toFixed(1) : '—'}</div>
+      <div class="kpi-delta neutral">total: ${sum(totArr)}</div>
+    </div>
+    <div class="kpi-card k-conv">
+      <div class="kpi-label">Avg Conv Rate</div>
+      <div class="kpi-val">${tArr.length ? (sum(totArr)/sum(tArr)*100).toFixed(1) : '—'}%</div>
+      <div class="kpi-delta neutral">${filteredData.length} weeks</div>
+    </div>
+  `;
+}
+
+// ========== CHART ==========
+function renderChart() {
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  let disp = [...filteredData];
+  if (chartView === 'ranked') disp.sort((a,b)=>b.t-a.t);
+  const avgVal = disp.length ? disp.reduce((s,d)=>s+d.t,0)/disp.length : 0;
+
+  const labels = disp.map(d => weekLabel(d.d));
+  document.getElementById('chartCount').textContent = `${disp.length} WEEKS`;
+
+  const datasets = [
+    {
+      label: 'Traffic',
+      data: disp.map(d=>d.t),
+      backgroundColor: 'rgba(200,75,47,0.18)',
+      borderColor: '#c84b2f',
+      borderWidth: 1.5,
+      borderRadius: 2,
+      yAxisID: 'y',
+      order: 4,
+      hidden: !seriesVisible[0],
+    },
+    {
+      label: 'Postpaid',
+      data: disp.map(d=>d.pp),
+      backgroundColor: 'rgba(37,99,235,0.55)',
+      borderColor: '#2563eb',
+      borderWidth: 1,
+      borderRadius: 2,
+      yAxisID: 'y2',
+      order: 3,
+      hidden: !seriesVisible[1],
+    },
+    {
+      label: 'Upgrades/HUG',
+      data: disp.map(d=>d.hug),
+      backgroundColor: 'rgba(217,119,6,0.6)',
+      borderColor: '#d97706',
+      borderWidth: 1,
+      borderRadius: 2,
+      yAxisID: 'y2',
+      order: 2,
+      hidden: !seriesVisible[2],
+    },
+    {
+      label: 'Prepaid',
+      data: disp.map(d=>d.pre),
+      backgroundColor: 'rgba(124,58,237,0.55)',
+      borderColor: '#7c3aed',
+      borderWidth: 1,
+      borderRadius: 2,
+      yAxisID: 'y2',
+      order: 1,
+      hidden: !seriesVisible[3],
+    },
+  ];
+
+  if (mainChart) mainChart.destroy();
+  mainChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1410',
+          borderColor: '#d8d2c8',
+          borderWidth: 1,
+          titleColor: '#f5f2ec',
+          bodyColor: '#c8c0b8',
+          titleFont: { family: 'IBM Plex Mono', size: 11 },
+          bodyFont: { family: 'IBM Plex Mono', size: 11 },
+          callbacks: {
+            title: items => items[0].label,
+            afterBody: items => {
+              const idx = items[0]?.dataIndex;
+              if (idx === undefined) return '';
+              const row = disp[idx];
+              const conv = (row.conv*100).toFixed(1);
+              return [``, `Conv rate: ${conv}%`, `Total sales: ${row.total}`];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#8a8278', font: { family: 'IBM Plex Mono', size: 8 }, maxRotation: 55, autoSkip: true, maxTicksLimit: 28 },
+          grid: { color: 'rgba(216,210,200,0.4)' }
+        },
+        y: {
+          position: 'left',
+          title: { display: true, text: 'TRAFFIC', color: '#c84b2f', font: { family: 'IBM Plex Mono', size: 9 } },
+          ticks: { color: '#c84b2f', font: { family: 'IBM Plex Mono', size: 10 } },
+          grid: { color: 'rgba(216,210,200,0.4)' },
+          beginAtZero: false,
+        },
+        y2: {
+          position: 'right',
+          title: { display: true, text: 'SALES COUNT', color: '#5a6070', font: { family: 'IBM Plex Mono', size: 9 } },
+          ticks: { color: '#5a6070', font: { family: 'IBM Plex Mono', size: 10 } },
+          grid: { display: false },
+          beginAtZero: true,
+        }
+      }
+    }
+  });
+}
+
+// ========== TOP WEEKS ==========
+function renderTopWeeks() {
+  const top = [...filteredData].sort((a,b)=>b.t-a.t).slice(0,10);
+  const maxT = top[0]?.t || 1;
+  document.getElementById('topWeeksList').innerHTML = top.length ? top.map((row,i) => `
+    <div class="top-week-item">
+      <div class="tw-rank">${String(i+1).padStart(2,'0')}</div>
+      <div class="tw-info">
+        <div class="tw-date">${weekLabel(row.d)}</div>
+        <div class="tw-meta">Global rank #${GLOBAL_RANKS[row.d]} · ${(row.t/maxT*100).toFixed(0)}% of peak</div>
+        <div class="tw-pills">
+          <span class="tw-pill pill-post">PP: ${row.pp}</span>
+          <span class="tw-pill pill-hug">HUG: ${row.hug}</span>
+          <span class="tw-pill pill-pre">Pre: ${row.pre}</span>
+        </div>
+      </div>
+      <div class="tw-val">${row.t.toLocaleString()}</div>
+    </div>`).join('')
+    : '<div style="color:var(--muted);font-size:13px;padding:16px 0;font-family:IBM Plex Mono,monospace">No weeks match filter</div>';
+}
+
+// ========== MONTH BARS ==========
+function renderMonthBars() {
+  const monthMap = {};
+  filteredData.forEach(d => {
+    const mk = d.d.slice(0,7);
+    if (!monthMap[mk]) monthMap[mk] = [];
+    monthMap[mk].push(d.t);
+  });
+  const months = Object.keys(monthMap).sort();
+  const avgs = months.map(m => monthMap[m].reduce((a,b)=>a+b,0)/monthMap[m].length);
+  const maxAvg = Math.max(...avgs, 1);
+  const colors = ['#c84b2f','#d97706','#2563eb','#059669','#7c3aed','#0891b2','#be185d','#65a30d','#c84b2f','#d97706','#2563eb','#059669','#7c3aed'];
+  document.getElementById('monthBars').innerHTML = months.length ? months.map((mk,i) => {
+    const [y,m] = mk.split('-');
+    const label = MONTHS_SHORT[parseInt(m)-1]+" '"+y.slice(2);
+    return `<div class="spark-row">
+      <div class="spark-month">${label}</div>
+      <div class="spark-bar-bg"><div class="spark-bar-fill" style="width:${(avgs[i]/maxAvg*100).toFixed(0)}%;background:${colors[i%colors.length]}"></div></div>
+      <div class="spark-num">${avgs[i].toFixed(0)}</div>
+      <div class="spark-pct">${monthMap[mk].length}wk</div>
+    </div>`;
+  }).join('') : '<div style="color:var(--muted);font-size:13px;padding:16px 0;font-family:IBM Plex Mono,monospace">No data</div>';
+}
+
+// ========== TABLE ==========
+function renderTable() {
+  let sorted = [...filteredData];
+  const sortMap = { traffic:'t', postpaid:'pp', hug:'hug', prepaid:'pre', total:'total', conv:'conv', date:'d', rank:null };
+  if (sortKey === 'date') sorted.sort((a,b)=>sortDir*(a.d.localeCompare(b.d)));
+  else if (sortKey === 'rank') sorted.sort((a,b)=>sortDir*(GLOBAL_RANKS[b.d]-GLOBAL_RANKS[a.d]));
+  else { const k = sortMap[sortKey]; if(k) sorted.sort((a,b)=>sortDir*(b[k]-a[k])); }
+
+  const maxT = Math.max(...ALL_DATA.map(d=>d.t));
+  const gAvg = ALL_DATA.reduce((s,d)=>s+d.t,0)/ALL_DATA.length;
+  const total = sorted.length;
+  const start = (page-1)*PAGE_SIZE;
+  const end = Math.min(start+PAGE_SIZE, total);
+  const pageData = sorted.slice(start, end);
+  document.getElementById('pageInfo').textContent = `Showing ${start+1}–${end} of ${total} weeks`;
+
+  const totalPages = Math.ceil(total/PAGE_SIZE);
+  const pageNums = document.getElementById('pageNums');
+  pageNums.innerHTML = '';
+  for (let p=1;p<=totalPages;p++) {
+    const pb = document.createElement('button');
+    pb.textContent = p;
+    if(p===page) pb.classList.add('active');
+    pb.onclick = () => { page=p; renderTable(); };
+    pageNums.appendChild(pb);
+  }
+  document.getElementById('prevBtn').disabled = page===1;
+  document.getElementById('nextBtn').disabled = page===totalPages;
+
+  const chronoAll = [...ALL_DATA].sort((a,b)=>a.d.localeCompare(b.d));
+  const wowMap = {};
+  chronoAll.forEach((row,i)=>{ if(i>0) wowMap[row.d]=row.t-chronoAll[i-1].t; });
+
+  document.getElementById('tableBody').innerHTML = pageData.map(row => {
+    const rank = GLOBAL_RANKS[row.d];
+    const barW = (row.t/maxT*44).toFixed(0);
+    const vsAvg = (row.t - gAvg).toFixed(0);
+    const vsClass = vsAvg >= 0 ? 'trend-up' : 'trend-dn';
+    const vsSign = vsAvg >= 0 ? '+' : '';
+    const wow = wowMap[row.d];
+    const wowStr = wow !== undefined ? `${wow>=0?'+':''}${wow}` : '—';
+    const wowClass = wow > 0 ? 'trend-up' : wow < 0 ? 'trend-dn' : 'trend-eq';
+    const rankBadge = rank<=3 ? `<span class="rank-badge rank-${rank}">${rank}</span>` : `<span style="font-family:'IBM Plex Mono';font-size:11px;color:var(--muted);">#${rank}</span>`;
+    const conv = (row.conv*100).toFixed(1);
+    const convColor = row.conv>=0.20?'var(--up)':row.conv>=0.15?'var(--warn)':'var(--down)';
+    return `<tr class="${rank<=5?'peak-row':''}">
+      <td>${weekLabel(row.d)}</td>
+      <td>
+        <div class="traffic-bar">
+          <div class="mini-bar"><div class="mini-fill" style="width:${barW}px;background:var(--traffic-c)"></div></div>
+          <strong>${row.t.toLocaleString()}</strong>
+        </div>
+      </td>
+      <td class="val-post">${row.pp}</td>
+      <td class="val-hug">${row.hug}</td>
+      <td class="val-pre">${row.pre}</td>
+      <td style="font-weight:700">${row.total}</td>
+      <td style="color:${convColor}">${conv}%</td>
+      <td>${rankBadge}</td>
+      <td class="${vsClass}">${vsSign}${vsAvg}</td>
+      <td class="${wowClass}">${wowStr}</td>
+    </tr>`;
+  }).join('');
+}
+
+function changePage(dir) {
+  const totalPages = Math.ceil(filteredData.length/PAGE_SIZE);
+  page = Math.max(1, Math.min(totalPages, page+dir));
+  renderTable();
+}
+
+// ========== RENDER ==========
+function render() {
+  renderKPIs();
+  renderChart();
+  renderTopWeeks();
+  renderMonthBars();
+  renderTable();
+  if (filteredData.length) {
+    const s = [...filteredData].sort((a,b)=>a.d.localeCompare(b.d));
+    const f = new Date(s[0].d), l = new Date(s[s.length-1].d);
+    document.getElementById('periodText').textContent =
+      MONTHS_SHORT[f.getMonth()]+' '+f.getFullYear()+' – '+MONTHS_SHORT[l.getMonth()]+' '+l.getFullYear();
+  }
+}
+
+render();
+</script>
+</body>
+</html>
